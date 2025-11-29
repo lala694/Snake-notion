@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Snake - Juego (embed para Notion)</title>
+  <style>
+    :root{--bg:#0b1220;--panel:#0f1724;--accent:#00e676;--muted:#94a3b8}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:var(--bg);color:#fff}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));padding:18px;border-radius:14px;box-shadow:0 6px 30px rgba(2,6,23,0.6);width:720px;max-width:100%}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    h1{font-size:18px;margin:0}
+    .board-wrap{display:flex;gap:18px;align-items:flex-start}
+    canvas{background:var(--panel);display:block;border-radius:8px}
+    .panel{min-width:200px}
+    .row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:8px 10px;border-radius:8px;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px}
+    .score{font-weight:700;font-size:20px;color:var(--accent)}
+    .hint{font-size:13px;margin-top:8px}
+    footer{margin-top:12px;font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1>Snake — Juego embebible</h1>
+        <div class="muted">Usa flechas o WASD • Pulsa espacio para pausar</div>
+      </header>
+
+      <div class="board-wrap">
+        <canvas id="c" width="480" height="480"></canvas>
+
+        <div class="panel">
+          <div class="row"><div class="muted">Puntuación</div><div id="score" class="score">0</div></div>
+          <div class="row"><div class="muted">Velocidad</div><div id="speedLabel">Normal</div></div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-direction:column">
+            <button id="startBtn" class="btn">Iniciar / Reiniciar</button>
+            <button id="pauseBtn" class="btn">Pausa</button>
+          </div>
+
+          <div class="hint">Controles: Flechas / WASD — Espacio para pausar — Tocar la pantalla para girar (móvil)</div>
+          <footer>Para usar en Notion: pega este archivo en CodePen/Glitch y embébelo con su URL.</footer>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Juego Snake simple y autocontenido
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const size = 24; // tamaño del grid
+  const cols = canvas.width / size;
+  const rows = canvas.height / size;
+
+  let snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+  let dir = {x:1,y:0};
+  let food = null;
+  let score = 0;
+  let speed = 8; // cuadros por segundo
+  let running = false;
+  let tickInterval = null;
+
+  const scoreEl = document.getElementById('score');
+  const speedLabel = document.getElementById('speedLabel');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+
+  function randCell(){
+    return {x: Math.floor(Math.random()*cols), y: Math.floor(Math.random()*rows)};
+  }
+
+  function placeFood(){
+    let candidate;
+    do {
+      candidate = randCell();
+    } while (snake.some(s => s.x===candidate.x && s.y===candidate.y));
+    food = candidate;
+  }
+
+  function draw(){
+    // fondo
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // food
+    if(food){
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillRect(food.x*size+2, food.y*size+2, size-4, size-4);
+    }
+
+    // snake
+    for(let i=0;i<snake.length;i++){
+      const s = snake[i];
+      ctx.fillStyle = i===0 ? '#00e676' : 'rgba(0,230,118,' + (0.6 - i*0.02) + ')';
+      ctx.fillRect(s.x*size+1, s.y*size+1, size-2, size-2);
+    }
+
+    // grid optional (light)
+    ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+    ctx.lineWidth = 1;
+    for(let x=0;x<cols;x++){ ctx.beginPath(); ctx.moveTo(x*size,0); ctx.lineTo(x*size,canvas.height); ctx.stroke(); }
+    for(let y=0;y<rows;y++){ ctx.beginPath(); ctx.moveTo(0,y*size); ctx.lineTo(canvas.width,y*size); ctx.stroke(); }
+  }
+
+  function step(){
+    const head = {...snake[0], x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+    // envolver la pantalla
+    head.x = (head.x + cols) % cols;
+    head.y = (head.y + rows) % rows;
+
+    // colisión con cuerpo
+    if(snake.some((s,idx)=> idx>0 && s.x===head.x && s.y===head.y)){
+      // fin
+      running = false;
+      clearInterval(tickInterval);
+      alert('Game Over! Puntuación: ' + score);
+      return;
+    }
+
+    snake.unshift(head);
+
+    // comer
+    if(food && head.x===food.x && head.y===food.y){
+      score += 10;
+      scoreEl.textContent = score;
+      placeFood();
+      // aumentar velocidad ligero cada 50 puntos
+      if(score % 50 === 0){ setSpeed(Math.min(20, speed+1)); }
+    } else {
+      snake.pop();
+    }
+
+    draw();
+  }
+
+  function setSpeed(s){
+    speed = s;
+    const ms = Math.round(1000 / speed);
+    if(tickInterval) { clearInterval(tickInterval); tickInterval = setInterval(step, ms); }
+    speedLabel.textContent = speed <= 8 ? 'Normal' : speed <= 12 ? 'Rápido' : 'Muy rápido';
+  }
+
+  // controles teclado
+  window.addEventListener('keydown', e => {
+    const key = e.key;
+    if(key === ' '){ // espacio para pausar
+      e.preventDefault();
+      togglePause();
+      return;
+    }
+    const map = {
+      ArrowUp: {x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+      w:{x:0,y:-1}, s:{x:0,y:1}, a:{x:-1,y:0}, d:{x:1,y:0}
+    };
+    const nd = map[key];
+    if(nd){
+      // prevenir giro 180
+      if(snake.length>1 && nd.x === -dir.x && nd.y === -dir.y) return;
+      dir = nd;
+    }
+  });
+
+  // controles táctiles simples: tocar izquierda/derecha del canvas gira
+  let touchStartX = null;
+  canvas.addEventListener('touchstart', e=>{ touchStartX = e.touches[0].clientX; }, {passive:true});
+  canvas.addEventListener('touchend', e=>{
+    if(touchStartX===null) return;
+    const endX = e.changedTouches[0].clientX;
+    const dx = endX - touchStartX;
+    if(Math.abs(dx) < 10) { touchStartX = null; return; }
+    // girar dependiendo de signo
+    if(dx > 0){ // girar a la derecha (relativo)
+      // rota dir 90° cw
+      dir = {x: dir.y, y: -dir.x};
+    } else {
+      // rota 90° ccw
+      dir = {x: -dir.y, y: dir.x};
+    }
+    touchStartX = null;
+  }, {passive:true});
+
+  startBtn.addEventListener('click', () => start(true));
+  pauseBtn.addEventListener('click', togglePause);
+
+  function togglePause(){
+    if(!running){ start(false); return; }
+    running = !running;
+    if(running){ setSpeed(speed); } else { clearInterval(tickInterval); }
+  }
+
+  function start(reset){
+    if(reset){
+      snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+      dir = {x:1,y:0};
+      score = 0;
+      scoreEl.textContent = score;
+      setSpeed(8);
+      placeFood();
+    }
+    if(tickInterval) clearInterval(tickInterval);
+    running = true;
+    tickInterval = setInterval(step, Math.round(1000/speed));
+    draw();
+  }
+
+  // iniciar al cargar
+  placeFood();
+  draw();
+
+})();
+</script>
+</body>
+</html>
