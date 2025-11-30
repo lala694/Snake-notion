@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Snake Game</title>
+<style>
+  body {
+    background: #111;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: white;
+    font-family: Arial, sans-serif;
+    flex-direction: column;
+  }
+
+  canvas {
+    background: #000;
+    border: 3px solid #0f0;
+  }
+
+  #btns {
+    margin-top: 20px;
+  }
+
+  button {
+    padding: 10px 20px;
+    background: #0f0;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 6px;
+    margin: 5px;
+  }
+</style>
+</head>
+<body>
+
+<h2>Snake 🐍</h2>
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="btns">
+  <button onclick="startGame()">Iniciar / Reiniciar</button>
+  <button onclick="paused = !paused">Pausa</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let snake, food, dx, dy, paused, score, speed;
+
+function startGame() {
+  snake = [{ x: 200, y: 200 }];
+  dx = 20;
+  dy = 0;
+  paused = false;
+  score = 0;
+  speed = 150;
+
+  spawnFood();
+  gameLoop();
+}
+
+function spawnFood() {
+  food = {
+    x: Math.floor(Math.random() * 20) * 20,
+    y: Math.floor(Math.random() * 20) * 20
+  };
+}
+
+function gameLoop() {
+  if (paused) return setTimeout(gameLoop, speed);
+
+  update();
+  draw();
+
+  setTimeout(gameLoop, speed);
+}
+
+function update() {
+  const head = {
+    x: (snake[0].x + dx + 400) % 400,
+    y: (snake[0].y + dy + 400) % 400
+  };
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    if (speed > 60) speed -= 5;
+    spawnFood();
+  } else {
+    snake.pop();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, 400, 400);
+
+  ctx.fillStyle = "lime";
+  snake.forEach(part => ctx.fillRect(part.x, part.y, 20, 20));
+
+  ctx.fillStyle = "red";
+  ctx.fillRect(food.x, food.y, 20, 20);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -20; }
+  else if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = 20; }
+  else if (e.key === "ArrowLeft" && dx === 0) { dx =
